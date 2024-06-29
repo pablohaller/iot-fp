@@ -5,7 +5,7 @@
 #include "esp_event.h"
 #include "esp_system.h"
 #include "esp_log.h"
-// #include "cJSON.h"
+#include "cJSON.h"
 
 // #include "lwip/err.h"
 // #include "lwip/sys.h"
@@ -25,69 +25,69 @@ static esp_err_t hello_get_handler(httpd_req_t *req)
 
 esp_err_t sta_connect_post_handler(httpd_req_t *req)
 {
-    // char content[100];
+    char content[100];
 
-    // // Truncate if content length larger than the buffer
-    // size_t recv_size = MIN(req->content_len, sizeof(content));
+    // Truncate if content length larger than the buffer
+    size_t recv_size = MIN(req->content_len, sizeof(content));
 
-    // int ret = httpd_req_recv(req, content, recv_size);
-    // if (ret <= 0)
-    // {
-    //     // 0 return value indicates connection closed
-    //     if (ret == HTTPD_SOCK_ERR_TIMEOUT)
-    //     {
-    //         httpd_resp_send_408(req);
-    //     }
-    //     return ESP_FAIL;
-    // }
+    int ret = httpd_req_recv(req, content, recv_size);
+    if (ret <= 0)
+    {
+        // 0 return value indicates connection closed
+        if (ret == HTTPD_SOCK_ERR_TIMEOUT)
+        {
+            httpd_resp_send_408(req);
+        }
+        return ESP_FAIL;
+    }
 
-    // // Null-terminate the received content to safely use string functions
-    // if (recv_size < sizeof(content))
-    // {
-    //     content[recv_size] = '\0';
-    // }
-    // else
-    // {
-    //     content[sizeof(content) - 1] = '\0';
-    // }
+    // Null-terminate the received content to safely use string functions
+    if (recv_size < sizeof(content))
+    {
+        content[recv_size] = '\0';
+    }
+    else
+    {
+        content[sizeof(content) - 1] = '\0';
+    }
 
-    // ESP_LOGI(TAG, "Received content: %s", content);
+    ESP_LOGI(TAG, "Received content: %s", content);
 
-    // // Parse the received JSON content
-    // cJSON *json = cJSON_Parse(content);
-    // if (json == NULL)
-    // {
-    //     ESP_LOGE(TAG, "Failed to parse JSON");
-    //     const char resp[] = "Invalid JSON";
-    //     httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
-    //     return ESP_FAIL;
-    // }
+    // Parse the received JSON content
+    cJSON *json = cJSON_Parse(content);
+    if (json == NULL)
+    {
+        ESP_LOGE(TAG, "Failed to parse JSON");
+        const char resp[] = "Invalid JSON";
+        httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+        return ESP_FAIL;
+    }
 
-    // // Extract values from JSON
-    // const cJSON *ssid_json = cJSON_GetObjectItemCaseSensitive(json, "ssid");
-    // const cJSON *password_json = cJSON_GetObjectItemCaseSensitive(json, "password");
+    // Extract values from JSON
+    const cJSON *ssid_json = cJSON_GetObjectItemCaseSensitive(json, "ssid");
+    const cJSON *password_json = cJSON_GetObjectItemCaseSensitive(json, "password");
 
-    // if (cJSON_IsString(ssid_json) && (ssid_json->valuestring != NULL) &&
-    //     cJSON_IsString(password_json) && (password_json->valuestring != NULL))
-    // {
-    //     ESP_LOGI(TAG, "Parsed SSID: %s", ssid_json->valuestring);
-    //     ESP_LOGI(TAG, "Parsed Password: %s", password_json->valuestring);
-    // }
-    // else
-    // {
-    //     ESP_LOGE(TAG, "JSON does not contain expected fields");
-    //     cJSON_Delete(json);
-    //     const char resp[] = "Invalid JSON fields";
-    //     httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
-    //     return ESP_FAIL;
-    // }
+    if (cJSON_IsString(ssid_json) && (ssid_json->valuestring != NULL) &&
+        cJSON_IsString(password_json) && (password_json->valuestring != NULL))
+    {
+        ESP_LOGI(TAG, "Parsed SSID: %s", ssid_json->valuestring);
+        ESP_LOGI(TAG, "Parsed Password: %s", password_json->valuestring);
+    }
+    else
+    {
+        ESP_LOGE(TAG, "JSON does not contain expected fields");
+        cJSON_Delete(json);
+        const char resp[] = "Invalid JSON fields";
+        httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+        return ESP_FAIL;
+    }
 
-    // // Clean up cJSON object
-    // cJSON_Delete(json);
+    // Clean up cJSON object
+    cJSON_Delete(json);
 
-    // // Send a simple response
-    // const char resp[] = "URI POST Response";
-    // httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+    // Send a simple response
+    const char resp[] = "URI POST Response";
+    httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
 
