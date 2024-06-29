@@ -1,37 +1,50 @@
-
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>IoTEmbeb</title>
     <style>
-        h1 {
-            color: red;
-            display: block;
-        }
+      h1 {
+        color: red;
+        display: block;
+      }
 
-        .body {
-            height: 100vh;
-            width: 100vw;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-        }
+      .body {
+        height: 100vh;
+        width: 100vw;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+      }
 
-        .button {
-            font-size: 40px;
-        }
+      .button {
+        font-size: 40px;
+      }
     </style>
     <script></script>
-</head>
-<body class="body">
+  </head>
+  <body class="body">
     <h1>IoT Embeb</h1>
-    <button class="button" onclick="foo()">Click me</button>
-    <script>
-        function foo() {
-          alert("Hello :)");
+    <form onsubmit="connectToSta(event)">
+        <input id="ssid" name="ssid" placeholder="ssid" />
+        <input id="password" name="password" placeholder="password" type="password" />
+        <button class="button" type="submit">Click me</button>
+      </form>
+      <script>
+        async function connectToSta(e) {
+          e?.preventDefault();
+          const ssid = document.getElementById('ssid').value;
+          const password = document.getElementById('password').value;
+
+          const request = await fetch("/sta-connect", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ ssid, password }),
+          });
         }
-    </script>
-</body>
+      </script>
+  </body>
 </html>
