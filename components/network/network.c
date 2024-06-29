@@ -4,6 +4,7 @@
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_log.h"
+#include "webserver.h"
 
 #define TAG "network"
 
@@ -57,6 +58,8 @@ void wifi_init_softap(void)
 
     ESP_LOGI(TAG, "wifi_init_softap finished. SSID:%s password:%s channel:%d",
              EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS, EXAMPLE_ESP_WIFI_CHANNEL);
+
+    init_webserver();
 }
 
 void init_network(void)
