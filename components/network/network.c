@@ -5,6 +5,7 @@
 #include "esp_event.h"
 #include "esp_log.h"
 #include "webserver.h"
+#include "mqttclient.h"
 #include "cJSON.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -143,6 +144,7 @@ void wifi_init_sta(void)
     if (bits & CONNECTED_BIT)
     {
         ESP_LOGI(TAG, "WIFI_MODE_STA connected.");
+        init_mqtt();
     }
     else
     {

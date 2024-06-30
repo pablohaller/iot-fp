@@ -1,1 +1,1 @@
-void func(void);
+void init_mqtt(void);
