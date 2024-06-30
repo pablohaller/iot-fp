@@ -7,6 +7,7 @@
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "network.h"
+#include "logger.h"
 
 #define TAG "main"
 void app_main(void)
@@ -22,4 +23,5 @@ void app_main(void)
 
     ESP_LOGI(TAG, "Hello world!");
     init_network();
+    init_logger();
 }

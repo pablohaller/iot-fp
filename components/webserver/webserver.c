@@ -7,10 +7,9 @@
 #include "esp_log.h"
 #include "cJSON.h"
 #include "network.h"
-
-// #include "lwip/err.h"
-// #include "lwip/sys.h"
 #include "webserver.h"
+#include "logger.h"
+
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 #define TAG "webserver"
@@ -21,6 +20,7 @@ static esp_err_t hello_get_handler(httpd_req_t *req)
     extern const uint8_t foo_html_end[] asm("_binary_foo_html_end");
     const size_t foo_html_size = (foo_html_end - foo_html_start);
     httpd_resp_send(req, (const char *)foo_html_start, foo_html_size);
+    buffer_print();
     return ESP_OK;
 }
 
