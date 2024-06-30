@@ -10,6 +10,16 @@ typedef struct
     uint8_t count;
 } circular_buffer_t;
 
+typedef enum
+{
+    PLAY = 0,
+    PAUSE = 1,
+    NEXT = 2,
+    PREVIOUS = 3,
+    STOP = 4,
+} EventType;
+
+const char *getEventName(EventType event);
 uint8_t buffer_read();
 void buffer_print();
 void buffer_write(uint8_t value);

@@ -157,8 +157,20 @@ void buffer_init()
     nvs_close(logger);
 }
 
+const char *EventNames[] = {
+    "Play/Pause",
+    "Next",
+    "Previous",
+    "Stop"};
+
+const char *getEventName(EventType event)
+{
+    return EventNames[event];
+}
+
 void init_logger(void)
 {
+    buffer_print();
     buffer_init();
 
     buffer_write(0);
@@ -198,8 +210,6 @@ void init_logger(void)
     //     buffer_write(8);
     //     buffer_write(9);
     //     buffer_write(10);
-
-    //     buffer_print();
 
     //     buffer_write(10);
     //     buffer_write(11);
