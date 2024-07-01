@@ -1,12 +1,3 @@
-/* MQTT (over TCP) Example
-
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
-
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
-*/
-
 #include <stdio.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -28,6 +19,8 @@
 
 #include "esp_log.h"
 #include "mqtt_client.h"
+#include "logger.h"
+#include "cJSON.h"
 
 static const char *TAG = "MQTT_EXAMPLE";
 
@@ -41,22 +34,18 @@ static void log_error_if_nonzero(const char *message, int error_code)
     }
 }
 
-/*
- * @brief Event handler registered to receive MQTT events
- *
- *  This function is called by the MQTT client event loop.
- *
- * @param handler_args user data registered to the event.
- * @param base Event base for the handler(always MQTT Base in this example).
- * @param event_id The id for the received event.
- * @param event_data The data for the event, esp_mqtt_event_handle_t.
- */
+static void log_buffer_entry(const buffer_entry_t *entry)
+{
+    ESP_LOGI(TAG, "Received buffer entry - Event: %s, Song ID: %d", getEventName(entry->event), entry->song_id);
+}
+
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
 {
     ESP_LOGD(TAG, "Event dispatched from event loop base=%s, event_id=%d", base, event_id);
     esp_mqtt_event_handle_t event = event_data;
     esp_mqtt_client_handle_t client = event->client;
     int msg_id;
+
     switch ((esp_mqtt_event_id_t)event_id)
     {
     case MQTT_EVENT_CONNECTED:
@@ -92,6 +81,48 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         ESP_LOGI(TAG, "MQTT_EVENT_DATA");
         printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
         printf("DATA=%.*s\r\n", event->data_len, event->data);
+
+        // Parse the JSON data
+        cJSON *root = cJSON_Parse(event->data);
+        if (root == NULL)
+        {
+            ESP_LOGE(TAG, "Failed to parse JSON");
+            break;
+        }
+
+        // Extract event and song_id
+        cJSON *event_item = cJSON_GetObjectItem(root, "event");
+        cJSON *song_id_item = cJSON_GetObjectItem(root, "song_id");
+
+        if (!cJSON_IsNumber(event_item) || !cJSON_IsNumber(song_id_item))
+        {
+            ESP_LOGE(TAG, "Invalid JSON format");
+            cJSON_Delete(root);
+            break;
+        }
+
+        // Check if event_item is a valid EventType
+        EventType event_type = (EventType)event_item->valueint;
+        if (event_type < PLAY || event_type > STOP)
+        {
+            ESP_LOGE(TAG, "Unknown event type");
+            cJSON_Delete(root);
+            break;
+        }
+
+        // Create a buffer entry
+        buffer_entry_t entry = {
+            .event = event_type,
+            .song_id = song_id_item->valueint,
+        };
+
+        // Log the buffer entry
+        log_buffer_entry(&entry);
+
+        // Write to the buffer
+        buffer_write(event_type, song_id_item->valueint);
+
+        cJSON_Delete(root);
         break;
     case MQTT_EVENT_ERROR:
         ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
@@ -115,7 +146,6 @@ static void mqtt_app_start(void)
         .uri = BROKER_URL};
 
     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
-    /* The last argument may be used to pass data to the event handler, in this example mqtt_event_handler */
     esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
     esp_mqtt_client_start(client);
 }
