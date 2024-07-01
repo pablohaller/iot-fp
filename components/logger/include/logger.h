@@ -17,6 +17,7 @@ typedef struct
 {
     EventType event;
     uint8_t song_id;
+    int64_t timestamp;
 } buffer_entry_t;
 
 typedef struct
@@ -35,3 +36,4 @@ void buffer_write(EventType event, uint8_t song_id);
 void buffer_init(void);
 void init_logger(void);
 circular_buffer_t get_buffer_from_nvs(void);
+void ntp_sync_time(void);

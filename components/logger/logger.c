@@ -1,3 +1,5 @@
+#include <string.h>
+#include <time.h>
 #include "logger.h"
 #include "cJSON.h"
 #include "esp_log.h"
@@ -5,13 +7,35 @@
 #include "nvs.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
-#include <string.h>
+#include "esp_sntp.h"
+#include "lwip/apps/sntp.h"
+#include "lwip/priv/tcpip_priv.h"
 
 #define TAG "logger"
 #define NVS_NAMESPACE "storage"
 
 circular_buffer_t buffer;
 SemaphoreHandle_t buffer_semaphore;
+
+void ntp_sync_time(void)
+{
+    sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    sntp_setservername(0, "pool.ntp.org");
+    sntp_init();
+
+    // Esperar a que el tiempo se sincronice
+    time_t now = 0;
+    struct tm timeinfo = {0};
+    int retry = 0;
+    const int retry_count = 10;
+    while (timeinfo.tm_year < (2016 - 1900) && ++retry < retry_count)
+    {
+        ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
+        time(&now);
+        localtime_r(&now, &timeinfo);
+    }
+}
 
 char *buffer_to_json()
 {
@@ -26,6 +50,19 @@ char *buffer_to_json()
         cJSON *entry = cJSON_CreateObject();
         cJSON_AddItemToObject(entry, "event", cJSON_CreateString(getEventName(buffer.data[index].event)));
         cJSON_AddItemToObject(entry, "song_id", cJSON_CreateNumber(buffer.data[index].song_id));
+
+        if (buffer.data[index].timestamp != 0)
+        {
+            char timestamp_str[20];
+            struct tm *timeinfo = localtime(&buffer.data[index].timestamp);
+            strftime(timestamp_str, sizeof(timestamp_str), "%m/%d/%Y %H:%M:%S", timeinfo);
+            cJSON_AddItemToObject(entry, "timestamp", cJSON_CreateString(timestamp_str));
+        }
+        else
+        {
+            cJSON_AddItemToObject(entry, "timestamp", cJSON_CreateNull());
+        }
+
         cJSON_AddItemToArray(buffer_array, entry);
     }
 
@@ -136,8 +173,12 @@ void buffer_write(EventType event, uint8_t song_id)
         return;
     }
 
+    time_t now;
+    time(&now);
+
     buffer.data[buffer.head].event = event;
     buffer.data[buffer.head].song_id = song_id;
+    buffer.data[buffer.head].timestamp = now;
     buffer.head = (buffer.head + 1) % BUFFER_SIZE;
 
     if (buffer.count == BUFFER_SIZE)
@@ -160,7 +201,7 @@ void buffer_write(EventType event, uint8_t song_id)
     }
 
     nvs_close(logger);
-    ESP_LOGI(TAG, "Written event: %s, song ID: %d to buffer", getEventName(event), song_id);
+    ESP_LOGI(TAG, "Written event: %s, song ID: %d, timestamp: %ld to buffer", getEventName(event), song_id, now);
 
     xSemaphoreGive(buffer_semaphore);
 }
@@ -244,6 +285,7 @@ void init_logger(void)
 {
     buffer_semaphore = xSemaphoreCreateMutex();
     buffer_init();
+    // ntp_sync_time(); // Sincronizar el tiempo NTP
 
     buffer_write(PLAY, 1);
     buffer_write(PAUSE, 2);
