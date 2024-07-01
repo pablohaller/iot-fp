@@ -1,5 +1,3 @@
-#include <string.h>
-#include <time.h>
 #include "logger.h"
 #include "cJSON.h"
 #include "esp_log.h"
@@ -8,8 +6,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "esp_sntp.h"
-#include "lwip/apps/sntp.h"
-#include "lwip/priv/tcpip_priv.h"
+#include <string.h>
+#include <time.h>
 
 #define TAG "logger"
 #define NVS_NAMESPACE "storage"
@@ -54,7 +52,7 @@ char *buffer_to_json()
         if (buffer.data[index].timestamp != 0)
         {
             char timestamp_str[20];
-            struct tm *timeinfo = localtime(&buffer.data[index].timestamp);
+            struct tm *timeinfo = localtime((time_t *)&buffer.data[index].timestamp);
             strftime(timestamp_str, sizeof(timestamp_str), "%m/%d/%Y %H:%M:%S", timeinfo);
             cJSON_AddItemToObject(entry, "timestamp", cJSON_CreateString(timestamp_str));
         }
@@ -201,7 +199,7 @@ void buffer_write(EventType event, uint8_t song_id)
     }
 
     nvs_close(logger);
-    ESP_LOGI(TAG, "Written event: %s, song ID: %d, timestamp: %ld to buffer", getEventName(event), song_id, now);
+    ESP_LOGI(TAG, "Written event: %s, song ID: %d, timestamp: %lld to buffer", getEventName(event), song_id, (long long)now);
 
     xSemaphoreGive(buffer_semaphore);
 }
@@ -269,6 +267,22 @@ circular_buffer_t get_buffer_from_nvs()
     return local_buffer;
 }
 
+uint8_t get_last_entry(buffer_entry_t *entry)
+{
+    xSemaphoreTake(buffer_semaphore, portMAX_DELAY);
+
+    if (buffer.count == 0)
+    {
+        xSemaphoreGive(buffer_semaphore);
+        return 0;
+    }
+
+    *entry = buffer.data[(buffer.head - 1 + BUFFER_SIZE) % BUFFER_SIZE];
+
+    xSemaphoreGive(buffer_semaphore);
+    return 1;
+}
+
 const char *EventNames[] = {
     "Play",
     "Pause",
@@ -285,7 +299,6 @@ void init_logger(void)
 {
     buffer_semaphore = xSemaphoreCreateMutex();
     buffer_init();
-    // ntp_sync_time(); // Sincronizar el tiempo NTP
 
     buffer_write(PLAY, 1);
     buffer_write(PAUSE, 2);

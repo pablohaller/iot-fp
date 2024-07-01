@@ -8,6 +8,7 @@
 #include "nvs_flash.h"
 #include "network.h"
 #include "logger.h"
+#include "player.h"
 
 #define TAG "main"
 void app_main(void)
@@ -24,4 +25,5 @@ void app_main(void)
     ESP_LOGI(TAG, "Hello world!");
     init_network();
     init_logger();
+    init_player();
 }

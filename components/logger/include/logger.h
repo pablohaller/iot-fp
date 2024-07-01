@@ -1,3 +1,4 @@
+#ifndef LOGGER_H
 #define LOGGER_H
 
 #include <stdint.h>
@@ -37,3 +38,6 @@ void buffer_init(void);
 void init_logger(void);
 circular_buffer_t get_buffer_from_nvs(void);
 void ntp_sync_time(void);
+uint8_t get_last_entry(buffer_entry_t *entry);
+
+#endif // LOGGER_H
