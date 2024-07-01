@@ -3,51 +3,20 @@
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "nvs.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include <string.h>
 
 #define TAG "logger"
 #define NVS_NAMESPACE "storage"
 
 circular_buffer_t buffer;
-
-circular_buffer_t get_buffer_from_nvs(void)
-{
-    circular_buffer_t local_buffer;
-    nvs_handle_t logger;
-    esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &logger);
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "Error (%s) opening NVS handle!", esp_err_to_name(err));
-        memset(&local_buffer, 0, sizeof(circular_buffer_t)); // Initialize to empty buffer on error
-        return local_buffer;
-    }
-
-    size_t required_size = sizeof(circular_buffer_t);
-    err = nvs_get_blob(logger, "buffer", &local_buffer, &required_size);
-
-    if (err == ESP_ERR_NVS_NOT_FOUND)
-    {
-        ESP_LOGI(TAG, "Buffer not found, initializing a new one");
-        memset(&local_buffer, 0, sizeof(circular_buffer_t));
-        nvs_set_blob(logger, "buffer", &local_buffer, sizeof(circular_buffer_t));
-        nvs_commit(logger);
-    }
-    else if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "Error reading buffer from NVS");
-        memset(&local_buffer, 0, sizeof(circular_buffer_t)); // Initialize to empty buffer on error
-    }
-    else
-    {
-        ESP_LOGI(TAG, "Buffer loaded from NVS");
-    }
-
-    nvs_close(logger);
-    return local_buffer;
-}
+SemaphoreHandle_t buffer_semaphore;
 
 char *buffer_to_json()
 {
+    xSemaphoreTake(buffer_semaphore, portMAX_DELAY);
+
     cJSON *root = cJSON_CreateObject();
     cJSON *buffer_array = cJSON_CreateArray();
 
@@ -63,6 +32,8 @@ char *buffer_to_json()
     cJSON_AddItemToObject(root, "buffer", buffer_array);
     char *json_string = cJSON_Print(root);
     cJSON_Delete(root);
+
+    xSemaphoreGive(buffer_semaphore);
     return json_string;
 }
 
@@ -98,11 +69,14 @@ void erase_namespace()
 
 uint8_t buffer_read(buffer_entry_t *entry)
 {
+    xSemaphoreTake(buffer_semaphore, portMAX_DELAY);
+
     nvs_handle_t logger;
     esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &logger);
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "Error (%s) opening NVS handle!", esp_err_to_name(err));
+        xSemaphoreGive(buffer_semaphore);
         return 0;
     }
 
@@ -110,6 +84,7 @@ uint8_t buffer_read(buffer_entry_t *entry)
     {
         ESP_LOGI(TAG, "Buffer is empty");
         nvs_close(logger);
+        xSemaphoreGive(buffer_semaphore);
         return 0;
     }
 
@@ -129,26 +104,35 @@ uint8_t buffer_read(buffer_entry_t *entry)
 
     nvs_close(logger);
     ESP_LOGI(TAG, "Read event: %s, song ID: %d", getEventName(entry->event), entry->song_id);
+
+    xSemaphoreGive(buffer_semaphore);
     return 1;
 }
 
 void buffer_print()
 {
+    xSemaphoreTake(buffer_semaphore, portMAX_DELAY);
+
     ESP_LOGI(TAG, "Buffer content:");
     for (int i = 0; i < buffer.count; i++)
     {
         int index = (buffer.tail + i) % BUFFER_SIZE;
         ESP_LOGI(TAG, "%d: Event: %s, Song ID: %d", i, getEventName(buffer.data[index].event), buffer.data[index].song_id);
     }
+
+    xSemaphoreGive(buffer_semaphore);
 }
 
 void buffer_write(EventType event, uint8_t song_id)
 {
+    xSemaphoreTake(buffer_semaphore, portMAX_DELAY);
+
     nvs_handle_t logger;
     esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &logger);
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "Error (%s) opening NVS handle!", esp_err_to_name(err));
+        xSemaphoreGive(buffer_semaphore);
         return;
     }
 
@@ -177,6 +161,8 @@ void buffer_write(EventType event, uint8_t song_id)
 
     nvs_close(logger);
     ESP_LOGI(TAG, "Written event: %s, song ID: %d to buffer", getEventName(event), song_id);
+
+    xSemaphoreGive(buffer_semaphore);
 }
 
 void buffer_init()
@@ -211,6 +197,37 @@ void buffer_init()
     nvs_close(logger);
 }
 
+circular_buffer_t get_buffer_from_nvs()
+{
+    nvs_handle_t logger;
+    esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &logger);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Error (%s) opening NVS handle!", esp_err_to_name(err));
+    }
+
+    circular_buffer_t local_buffer;
+    size_t required_size = sizeof(circular_buffer_t);
+    err = nvs_get_blob(logger, "buffer", &local_buffer, &required_size);
+
+    if (err == ESP_ERR_NVS_NOT_FOUND)
+    {
+        ESP_LOGI(TAG, "Buffer not found, initializing a new one");
+        memset(&local_buffer, 0, sizeof(circular_buffer_t));
+    }
+    else if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Error reading buffer from NVS");
+    }
+    else
+    {
+        ESP_LOGI(TAG, "Buffer loaded from NVS");
+    }
+
+    nvs_close(logger);
+    return local_buffer;
+}
+
 const char *EventNames[] = {
     "Play",
     "Pause",
@@ -225,6 +242,7 @@ const char *getEventName(EventType event)
 
 void init_logger(void)
 {
+    buffer_semaphore = xSemaphoreCreateMutex();
     buffer_init();
 
     buffer_write(PLAY, 1);
