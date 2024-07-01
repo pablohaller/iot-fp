@@ -75,6 +75,14 @@
         <input id="topic" name="topic" placeholder="topic" />
         <button type="submit">Connect</button>
       </form>
+      <form class="form-container" onsubmit="connectToSta(event)">
+        <h2>Commands</h2>
+        <button type="button" onclick="sendCommand(0)">Play</button>
+        <button type="button" onclick="sendCommand(1)">Pause</button>
+        <button type="button" onclick="sendCommand(2)">Next</button>
+        <button type="button" onclick="sendCommand(3)">Previous</button>
+        <button type="button" onclick="sendCommand(4)">Stop</button>
+      </form>
     </div>
     <div class="log-container">
       <button type="button" onclick="getLogs(event)">Refresh</button>
@@ -92,6 +100,15 @@
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ ssid, password }),
+        });
+      }
+
+      async function sendCommand(eventType) {
+        const request = await fetch(`/event-type?event=${eventType}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
         });
       }
 

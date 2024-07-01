@@ -102,6 +102,48 @@ esp_err_t sta_connect_post_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+esp_err_t event_type_handler(httpd_req_t *req)
+{
+    char query[100];
+    char event_str[10];
+
+    if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK)
+    {
+        ESP_LOGI(TAG, "Found URL query: %s", query);
+
+        if (httpd_query_key_value(query, "event", event_str, sizeof(event_str)) == ESP_OK)
+        {
+            ESP_LOGI(TAG, "Found URL query parameter => event=%s", event_str);
+        }
+        else
+        {
+            ESP_LOGI(TAG, "No URL query parameter => event");
+            const char resp[] = "Invalid query parameter: event";
+            httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+            return ESP_FAIL;
+        }
+    }
+    else
+    {
+        ESP_LOGI(TAG, "No URL query found");
+        const char resp[] = "No query string found";
+        httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+        return ESP_FAIL;
+    }
+
+    EventType event = atoi(event_str);
+    circular_buffer_t local_buffer = get_buffer_from_nvs();
+    uint8_t last_song_id = (local_buffer.count > 0) ? local_buffer.data[(local_buffer.tail + local_buffer.count - 1) % BUFFER_SIZE].song_id : 0;
+
+    buffer_write(event, last_song_id);
+
+    ESP_LOGI(TAG, "Event: %s, Song ID: %d", getEventName(event), last_song_id);
+
+    const char resp[] = "Event received and processed";
+    httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+    return ESP_OK;
+}
+
 static const httpd_uri_t hello = {
     .uri = "/",
     .method = HTTP_GET,
@@ -111,6 +153,11 @@ static const httpd_uri_t sta_connect = {
     .uri = "/sta-connect",
     .method = HTTP_POST,
     .handler = sta_connect_post_handler};
+
+static const httpd_uri_t event_type = {
+    .uri = "/event-type",
+    .method = HTTP_POST,
+    .handler = event_type_handler};
 
 static const httpd_uri_t logs = {
     .uri = "/logs",
@@ -132,6 +179,7 @@ static httpd_handle_t start_webserver(void)
         httpd_register_uri_handler(server, &hello);
         httpd_register_uri_handler(server, &sta_connect);
         httpd_register_uri_handler(server, &logs);
+        httpd_register_uri_handler(server, &event_type);
         return server;
     }
 

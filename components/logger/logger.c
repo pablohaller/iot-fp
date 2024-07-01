@@ -10,6 +10,42 @@
 
 circular_buffer_t buffer;
 
+circular_buffer_t get_buffer_from_nvs(void)
+{
+    circular_buffer_t local_buffer;
+    nvs_handle_t logger;
+    esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &logger);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Error (%s) opening NVS handle!", esp_err_to_name(err));
+        memset(&local_buffer, 0, sizeof(circular_buffer_t)); // Initialize to empty buffer on error
+        return local_buffer;
+    }
+
+    size_t required_size = sizeof(circular_buffer_t);
+    err = nvs_get_blob(logger, "buffer", &local_buffer, &required_size);
+
+    if (err == ESP_ERR_NVS_NOT_FOUND)
+    {
+        ESP_LOGI(TAG, "Buffer not found, initializing a new one");
+        memset(&local_buffer, 0, sizeof(circular_buffer_t));
+        nvs_set_blob(logger, "buffer", &local_buffer, sizeof(circular_buffer_t));
+        nvs_commit(logger);
+    }
+    else if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Error reading buffer from NVS");
+        memset(&local_buffer, 0, sizeof(circular_buffer_t)); // Initialize to empty buffer on error
+    }
+    else
+    {
+        ESP_LOGI(TAG, "Buffer loaded from NVS");
+    }
+
+    nvs_close(logger);
+    return local_buffer;
+}
+
 char *buffer_to_json()
 {
     cJSON *root = cJSON_CreateObject();

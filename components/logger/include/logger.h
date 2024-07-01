@@ -34,3 +34,4 @@ void buffer_print();
 void buffer_write(EventType event, uint8_t song_id);
 void buffer_init(void);
 void init_logger(void);
+circular_buffer_t get_buffer_from_nvs(void);
