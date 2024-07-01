@@ -24,6 +24,23 @@ static esp_err_t hello_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+static esp_err_t logs_get_handler(httpd_req_t *req)
+{
+    char *json_string = buffer_to_json();
+    if (json_string == NULL)
+    {
+        const char *resp = "Error generating JSON";
+        httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+        return ESP_FAIL;
+    }
+
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_send(req, json_string, HTTPD_RESP_USE_STRLEN);
+
+    free(json_string); // Liberar la memoria asignada por cJSON_Print
+    return ESP_OK;
+}
+
 esp_err_t sta_connect_post_handler(httpd_req_t *req)
 {
     char content[100];
@@ -95,6 +112,11 @@ static const httpd_uri_t sta_connect = {
     .method = HTTP_POST,
     .handler = sta_connect_post_handler};
 
+static const httpd_uri_t logs = {
+    .uri = "/logs",
+    .method = HTTP_GET,
+    .handler = logs_get_handler};
+
 static httpd_handle_t start_webserver(void)
 {
     httpd_handle_t server = NULL;
@@ -109,6 +131,7 @@ static httpd_handle_t start_webserver(void)
         ESP_LOGI(TAG, "Registering URI handlers");
         httpd_register_uri_handler(server, &hello);
         httpd_register_uri_handler(server, &sta_connect);
+        httpd_register_uri_handler(server, &logs);
         return server;
     }
 

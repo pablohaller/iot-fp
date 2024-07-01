@@ -1,22 +1,39 @@
-#include <stdio.h>
-#include <string.h>
-#include "esp_system.h"
+#include "logger.h"
+#include "cJSON.h"
+#include "esp_log.h"
 #include "nvs_flash.h"
 #include "nvs.h"
-#include "esp_log.h"
-#include "logger.h"
+#include <string.h>
 
 #define TAG "logger"
 #define NVS_NAMESPACE "storage"
 
 circular_buffer_t buffer;
 
+char *buffer_to_json()
+{
+    cJSON *root = cJSON_CreateObject();
+    cJSON *buffer_array = cJSON_CreateArray();
+
+    for (int i = 0; i < buffer.count; i++)
+    {
+        int index = (buffer.tail + i) % BUFFER_SIZE;
+        cJSON *entry = cJSON_CreateObject();
+        cJSON_AddItemToObject(entry, "event", cJSON_CreateString(getEventName(buffer.data[index].event)));
+        cJSON_AddItemToObject(entry, "song_id", cJSON_CreateNumber(buffer.data[index].song_id));
+        cJSON_AddItemToArray(buffer_array, entry);
+    }
+
+    cJSON_AddItemToObject(root, "buffer", buffer_array);
+    char *json_string = cJSON_Print(root);
+    cJSON_Delete(root);
+    return json_string;
+}
+
 void erase_namespace()
 {
     nvs_handle_t logger;
-    esp_err_t err;
-
-    err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &logger);
+    esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &logger);
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "Error (%s) opening NVS handle!", esp_err_to_name(err));
@@ -43,7 +60,7 @@ void erase_namespace()
     ESP_LOGI(TAG, "Namespace '%s' erased.", NVS_NAMESPACE);
 }
 
-uint8_t buffer_read()
+uint8_t buffer_read(buffer_entry_t *entry)
 {
     nvs_handle_t logger;
     esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &logger);
@@ -60,7 +77,7 @@ uint8_t buffer_read()
         return 0;
     }
 
-    uint8_t value = buffer.data[buffer.tail];
+    *entry = buffer.data[buffer.tail];
     buffer.tail = (buffer.tail + 1) % BUFFER_SIZE;
     buffer.count--;
 
@@ -75,8 +92,8 @@ uint8_t buffer_read()
     }
 
     nvs_close(logger);
-    ESP_LOGI(TAG, "Read %d from buffer", value);
-    return value;
+    ESP_LOGI(TAG, "Read event: %s, song ID: %d", getEventName(entry->event), entry->song_id);
+    return 1;
 }
 
 void buffer_print()
@@ -85,11 +102,11 @@ void buffer_print()
     for (int i = 0; i < buffer.count; i++)
     {
         int index = (buffer.tail + i) % BUFFER_SIZE;
-        ESP_LOGI(TAG, "%d: %d", i, buffer.data[index]);
+        ESP_LOGI(TAG, "%d: Event: %s, Song ID: %d", i, getEventName(buffer.data[index].event), buffer.data[index].song_id);
     }
 }
 
-void buffer_write(uint8_t value)
+void buffer_write(EventType event, uint8_t song_id)
 {
     nvs_handle_t logger;
     esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &logger);
@@ -99,7 +116,8 @@ void buffer_write(uint8_t value)
         return;
     }
 
-    buffer.data[buffer.head] = value;
+    buffer.data[buffer.head].event = event;
+    buffer.data[buffer.head].song_id = song_id;
     buffer.head = (buffer.head + 1) % BUFFER_SIZE;
 
     if (buffer.count == BUFFER_SIZE)
@@ -122,7 +140,7 @@ void buffer_write(uint8_t value)
     }
 
     nvs_close(logger);
-    ESP_LOGI(TAG, "Written %d to buffer", value);
+    ESP_LOGI(TAG, "Written event: %s, song ID: %d to buffer", getEventName(event), song_id);
 }
 
 void buffer_init()
@@ -158,7 +176,8 @@ void buffer_init()
 }
 
 const char *EventNames[] = {
-    "Play/Pause",
+    "Play",
+    "Pause",
     "Next",
     "Previous",
     "Stop"};
@@ -170,53 +189,14 @@ const char *getEventName(EventType event)
 
 void init_logger(void)
 {
-    buffer_print();
     buffer_init();
 
-    buffer_write(0);
-    buffer_write(1);
-    buffer_write(2);
-    //     buffer_write(3);
-    //     buffer_write(4);
-    //     buffer_write(5);
-    //     buffer_write(6);
-    //     buffer_write(7);
-    //     buffer_write(8);
-    //     buffer_write(9);
-    //     buffer_write(10);
-    //     buffer_write(11);
-    //     buffer_write(12);
-    //     buffer_write(13);
-    //     buffer_write(14);
-    //     buffer_write(15);
-    //     buffer_write(16);
-    //     buffer_write(17);
-    //     buffer_write(18);
-    //     buffer_write(19);
+    buffer_write(PLAY, 1);
+    buffer_write(PAUSE, 2);
+    buffer_write(NEXT, 3);
 
-    //     buffer_print();
+    char *json_string = buffer_to_json();
+    ESP_LOGI(TAG, "Buffer JSON: %s", json_string);
 
-    //     uint8_t value = buffer_read();
-    //     ESP_LOGI(TAG, "Read value 1: %d", value);
-
-    //     buffer_write(0);
-    //     buffer_write(1);
-    //     buffer_write(2);
-    //     buffer_write(3);
-    //     buffer_write(4);
-    //     buffer_write(5);
-    //     buffer_write(6);
-    //     buffer_write(7);
-    //     buffer_write(8);
-    //     buffer_write(9);
-    //     buffer_write(10);
-
-    //     buffer_write(10);
-    //     buffer_write(11);
-    //     buffer_write(12);
-    //     buffer_write(13);
-    //     buffer_write(14);
-
-    //     value = buffer_read();
-    //     ESP_LOGI(TAG, "Read value 2: %d", value);
+    free(json_string);
 }

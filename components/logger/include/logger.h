@@ -1,14 +1,8 @@
+#define LOGGER_H
 
-// Definiciones y estructuras
+#include <stdint.h>
+
 #define BUFFER_SIZE 20
-
-typedef struct
-{
-    uint8_t data[BUFFER_SIZE];
-    uint8_t head;
-    uint8_t tail;
-    uint8_t count;
-} circular_buffer_t;
 
 typedef enum
 {
@@ -19,9 +13,24 @@ typedef enum
     STOP = 4,
 } EventType;
 
+typedef struct
+{
+    EventType event;
+    uint8_t song_id;
+} buffer_entry_t;
+
+typedef struct
+{
+    buffer_entry_t data[BUFFER_SIZE];
+    uint8_t head;
+    uint8_t tail;
+    uint8_t count;
+} circular_buffer_t;
+
+char *buffer_to_json(void);
 const char *getEventName(EventType event);
-uint8_t buffer_read();
+uint8_t buffer_read(buffer_entry_t *entry);
 void buffer_print();
-void buffer_write(uint8_t value);
-void buffer_init();
+void buffer_write(EventType event, uint8_t song_id);
+void buffer_init(void);
 void init_logger(void);

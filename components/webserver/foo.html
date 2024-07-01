@@ -1,50 +1,119 @@
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>IoTEmbeb</title>
     <style>
-      h1 {
-        color: red;
-        display: block;
+      body {
+        padding: 16px;
       }
 
-      .body {
-        height: 100vh;
-        width: 100vw;
+      h1 {
+        font-size: 1.25rem;
+      }
+
+      .container {
         display: flex;
-        justify-content: center;
-        align-items: center;
+        gap: 16px;
+      }
+
+      .form-container {
+        background-color: #cbd5e1;
+        padding: 16px;
+        border-radius: 8px;
+        display: flex;
         flex-direction: column;
       }
 
-      .button {
-        font-size: 40px;
+      .log-container {
+        background-color: #cbd5e1;
+        padding: 16px;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        overflow-y: scroll;
+        height: 250px;
+        margin-top: 16px;
+      }
+
+      .form-container input {
+        margin-bottom: 8px;
+      }
+
+      .form-container button {
+        padding: 8px;
+        background-color: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+
+      .form-container button:hover {
+        background-color: #2563eb;
       }
     </style>
-    <script></script>
   </head>
-  <body class="body">
+  <body>
     <h1>IoT Embeb</h1>
-    <form onsubmit="connectToSta(event)">
+    <div class="container">
+      <form class="form-container" onsubmit="connectToSta(event)">
+        <h2>Network Config</h2>
         <input id="ssid" name="ssid" placeholder="ssid" />
-        <input id="password" name="password" placeholder="password" type="password" />
-        <button class="button" type="submit">Click me</button>
+        <input
+          id="password"
+          name="password"
+          placeholder="password"
+          type="password"
+        />
+        <button type="submit">Connect</button>
       </form>
-      <script>
-        async function connectToSta(e) {
-          e?.preventDefault();
-          const ssid = document.getElementById('ssid').value;
-          const password = document.getElementById('password').value;
+      <form class="form-container" onsubmit="connectToSta(event)">
+        <h2>MQTT Config</h2>
+        <input id="broker" name="broker" placeholder="broker" />
+        <input id="topic" name="topic" placeholder="topic" />
+        <button type="submit">Connect</button>
+      </form>
+    </div>
+    <div class="log-container">
+      <button type="button" onclick="getLogs(event)">Refresh</button>
+      <ul id="log-list"></ul>
+    </div>
+    <script>
+      async function connectToSta(e) {
+        e?.preventDefault();
+        const ssid = document.getElementById("ssid").value;
+        const password = document.getElementById("password").value;
 
-          const request = await fetch("/sta-connect", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ ssid, password }),
-          });
-        }
-      </script>
+        const request = await fetch("/sta-connect", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ ssid, password }),
+        });
+      }
+
+      async function getLogs(e) {
+        console.log("getLogs");
+        e?.preventDefault();
+        const request = await fetch("/logs", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        const logs = await request.json();
+        const logList = document.getElementById("log-list");
+        logList.innerHTML = "";
+        logs?.buffer?.forEach((log) => {
+          const li = document.createElement("li");
+          li.textContent = JSON.stringify(log);
+          logList.appendChild(li);
+        });
+      }
+    </script>
   </body>
 </html>
