@@ -9,6 +9,7 @@
 #include "network.h"
 #include "webserver.h"
 #include "logger.h"
+#include "mqttclient.h"
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
@@ -151,6 +152,69 @@ esp_err_t event_type_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+esp_err_t mqtt_connect_handler(httpd_req_t *req)
+{
+    char content[100];
+    size_t recv_size = MIN(req->content_len, sizeof(content));
+
+    int ret = httpd_req_recv(req, content, recv_size);
+    if (ret <= 0)
+    {
+        if (ret == HTTPD_SOCK_ERR_TIMEOUT)
+        {
+            httpd_resp_send_408(req);
+        }
+        return ESP_FAIL;
+    }
+
+    if (recv_size < sizeof(content))
+    {
+        content[recv_size] = '\0';
+    }
+    else
+    {
+        content[sizeof(content) - 1] = '\0';
+    }
+
+    cJSON *json = cJSON_Parse(content);
+    if (json == NULL)
+    {
+        const char resp[] = "Invalid JSON";
+        httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+        return ESP_FAIL;
+    }
+
+    const cJSON *broker_json = cJSON_GetObjectItemCaseSensitive(json, "broker");
+    const cJSON *topic_json = cJSON_GetObjectItemCaseSensitive(json, "topic");
+
+    if (cJSON_IsString(broker_json) && (broker_json->valuestring != NULL) &&
+        cJSON_IsString(topic_json) && (topic_json->valuestring != NULL))
+    {
+        esp_err_t res = mqtt_app_start(broker_json->valuestring, topic_json->valuestring);
+        cJSON_Delete(json);
+
+        if (res == ESP_OK)
+        {
+            const char resp[] = "MQTT connected";
+            httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+            return ESP_OK;
+        }
+        else
+        {
+            const char resp[] = "MQTT connection failed";
+            httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+            return ESP_FAIL;
+        }
+    }
+    else
+    {
+        cJSON_Delete(json);
+        const char resp[] = "Invalid JSON fields";
+        httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+        return ESP_FAIL;
+    }
+}
+
 static const httpd_uri_t hello = {
     .uri = "/",
     .method = HTTP_GET,
@@ -171,6 +235,11 @@ static const httpd_uri_t logs = {
     .method = HTTP_GET,
     .handler = logs_get_handler};
 
+static const httpd_uri_t mqtt_connect = {
+    .uri = "/mqtt-connect",
+    .method = HTTP_POST,
+    .handler = mqtt_connect_handler};
+
 static httpd_handle_t start_webserver(void)
 {
     httpd_handle_t server = NULL;
@@ -187,6 +256,7 @@ static httpd_handle_t start_webserver(void)
         httpd_register_uri_handler(server, &sta_connect);
         httpd_register_uri_handler(server, &logs);
         httpd_register_uri_handler(server, &event_type);
+        httpd_register_uri_handler(server, &mqtt_connect);
         return server;
     }
 

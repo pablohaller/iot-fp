@@ -147,7 +147,6 @@ int wifi_init_sta(const char *ssid, const char *password)
     if (bits & CONNECTED_BIT)
     {
         ESP_LOGI(TAG, "WIFI_MODE_STA connected.");
-        init_mqtt();
         ntp_sync_time();
         return 200;
     }

@@ -69,10 +69,10 @@
         />
         <button type="submit">Connect</button>
       </form>
-      <form class="form-container" onsubmit="connectToSta(event)">
+      <form class="form-container" onsubmit="connectToMqtt(event)">
         <h2>MQTT Config</h2>
-        <input id="broker" name="broker" placeholder="broker" />
-        <input id="topic" name="topic" placeholder="topic" />
+        <input id="broker" name="broker" placeholder="broker" value="mqtt://broker.hivemq.com" />
+        <input id="topic" name="topic" placeholder="topic" value="/topic/qos0" />
         <button type="submit">Connect</button>
       </form>
       <form class="form-container">
@@ -94,56 +94,62 @@
         const ssid = document.getElementById("ssid").value;
         const password = document.getElementById("password").value;
 
-        try {
-          const response = await fetch("/sta-connect", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ ssid, password }),
-          });
+        const request = await fetch("/sta-connect", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ ssid, password }),
+        });
 
-          if (!response.ok) {
-            throw new Error(`Error: ${response.status} ${response.statusText}`);
-          }
-        } catch (error) {
-          console.error("Failed to connect to STA", error);
+        if (!request.ok) {
+          console.error("Failed to connect to STA");
+        }
+      }
+
+      async function connectToMqtt(e) {
+        e?.preventDefault();
+        const broker = document.getElementById("broker").value;
+        const topic = document.getElementById("topic").value;
+
+        const request = await fetch("/mqtt-connect", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ broker, topic }),
+        });
+
+        if (!request.ok) {
+          console.error("Failed to connect to MQTT");
         }
       }
 
       async function sendCommand(eventType) {
-        try {
-          const response = await fetch(`/event-type?event=${eventType}`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          });
+        const request = await fetch(`/event-type?event=${eventType}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
 
-          if (!response.ok) {
-            throw new Error(`Error: ${response.status} ${response.statusText}`);
-          }
-        } catch (error) {
-          console.error("Failed to send command", error);
+        if (!request.ok) {
+          console.error("Failed to send command");
         }
       }
 
       async function getLogs(e) {
         console.log("getLogs");
         e?.preventDefault();
-        try {
-          const response = await fetch("/logs", {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          });
+        const request = await fetch("/logs", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
 
-          if (!response.ok) {
-            throw new Error(`Error: ${response.status} ${response.statusText}`);
-          }
-
-          const logs = await response.json();
+        if (request.ok) {
+          const logs = await request.json();
           const logList = document.getElementById("log-list");
           logList.innerHTML = "";
           logs?.buffer?.forEach((log) => {
@@ -151,8 +157,8 @@
             li.textContent = JSON.stringify(log);
             logList.appendChild(li);
           });
-        } catch (error) {
-          console.error("Failed to fetch logs", error);
+        } else {
+          console.error("Failed to get logs");
         }
       }
     </script>
