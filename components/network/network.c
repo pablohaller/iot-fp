@@ -106,7 +106,7 @@ void wifi_init_softap(void)
     init_webserver();
 }
 
-void wifi_init_sta(void)
+int wifi_init_sta(const char *ssid, const char *password)
 {
     xEventGroupWaitBits(wifi_event_group, AP_STARTED_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
     esp_netif_create_default_wifi_sta();
@@ -126,10 +126,12 @@ void wifi_init_sta(void)
 
     wifi_config_t wifi_config = {
         .sta = {
-            .ssid = "PABLO",
-            .password = "12345678",
+            .ssid = "",
+            .password = "",
         },
     };
+    strncpy((char *)wifi_config.sta.ssid, ssid, sizeof(wifi_config.sta.ssid) - 1);
+    strncpy((char *)wifi_config.sta.password, password, sizeof(wifi_config.sta.password) - 1);
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
@@ -147,10 +149,12 @@ void wifi_init_sta(void)
         ESP_LOGI(TAG, "WIFI_MODE_STA connected.");
         init_mqtt();
         ntp_sync_time();
+        return 200;
     }
     else
     {
         ESP_LOGI(TAG, "WIFI_MODE_STA can't connect.");
+        return 500;
     }
 }
 

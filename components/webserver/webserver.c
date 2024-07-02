@@ -84,7 +84,17 @@ esp_err_t sta_connect_post_handler(httpd_req_t *req)
     {
         ESP_LOGI(TAG, "Parsed SSID: %s", ssid_json->valuestring);
         ESP_LOGI(TAG, "Parsed Password: %s", password_json->valuestring);
-        wifi_init_sta();
+        int status = wifi_init_sta(ssid_json->valuestring, password_json->valuestring);
+        if (status == 200)
+        {
+            const char resp[] = "Connected to WiFi";
+            httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+        }
+        else
+        {
+            const char resp[] = "Failed to connect to WiFi";
+            httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+        }
     }
     else
     {
@@ -96,9 +106,6 @@ esp_err_t sta_connect_post_handler(httpd_req_t *req)
     }
 
     cJSON_Delete(json);
-
-    const char resp[] = "URI POST Response";
-    httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
 

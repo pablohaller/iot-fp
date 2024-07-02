@@ -75,7 +75,7 @@
         <input id="topic" name="topic" placeholder="topic" />
         <button type="submit">Connect</button>
       </form>
-      <form class="form-container" onsubmit="connectToSta(event)">
+      <form class="form-container">
         <h2>Commands</h2>
         <button type="button" onclick="sendCommand(0)">Play</button>
         <button type="button" onclick="sendCommand(1)">Pause</button>
@@ -94,42 +94,66 @@
         const ssid = document.getElementById("ssid").value;
         const password = document.getElementById("password").value;
 
-        const request = await fetch("/sta-connect", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ ssid, password }),
-        });
+        try {
+          const response = await fetch("/sta-connect", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ ssid, password }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`Error: ${response.status} ${response.statusText}`);
+          }
+        } catch (error) {
+          console.error("Failed to connect to STA", error);
+        }
       }
 
       async function sendCommand(eventType) {
-        const request = await fetch(`/event-type?event=${eventType}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
+        try {
+          const response = await fetch(`/event-type?event=${eventType}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (!response.ok) {
+            throw new Error(`Error: ${response.status} ${response.statusText}`);
+          }
+        } catch (error) {
+          console.error("Failed to send command", error);
+        }
       }
 
       async function getLogs(e) {
         console.log("getLogs");
         e?.preventDefault();
-        const request = await fetch("/logs", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
+        try {
+          const response = await fetch("/logs", {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
 
-        const logs = await request.json();
-        const logList = document.getElementById("log-list");
-        logList.innerHTML = "";
-        logs?.buffer?.forEach((log) => {
-          const li = document.createElement("li");
-          li.textContent = JSON.stringify(log);
-          logList.appendChild(li);
-        });
+          if (!response.ok) {
+            throw new Error(`Error: ${response.status} ${response.statusText}`);
+          }
+
+          const logs = await response.json();
+          const logList = document.getElementById("log-list");
+          logList.innerHTML = "";
+          logs?.buffer?.forEach((log) => {
+            const li = document.createElement("li");
+            li.textContent = JSON.stringify(log);
+            logList.appendChild(li);
+          });
+        } catch (error) {
+          console.error("Failed to fetch logs", error);
+        }
       }
     </script>
   </body>
