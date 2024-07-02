@@ -64,3 +64,7 @@ idf_component_register(SRCS "cJSON.c"
 | :-------- | :------- | :---------------- |
 | `broker`  | `string` | Broker URL        |
 | `topic`   | `string` | Topic to suscribe |
+
+// Enviar log con QoS1.
+// Guardar configuración en el nvs.
+// Queue con semaforos en player.

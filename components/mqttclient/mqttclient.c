@@ -9,6 +9,15 @@ static const char *TAG = "MQTT_EXAMPLE";
 esp_mqtt_client_handle_t client = NULL;
 static char subscribed_topic[256]; // Buffer to store the subscribed topic
 
+typedef struct
+{
+    EventType event;
+    uint8_t song_id;
+} pending_event_t;
+
+static pending_event_t pending_event;
+static bool pending_event_active = false;
+
 static void log_error_if_nonzero(const char *message, int error_code)
 {
     if (error_code != 0)
@@ -16,17 +25,19 @@ static void log_error_if_nonzero(const char *message, int error_code)
         ESP_LOGE(TAG, "Last error %s: 0x%x", message, error_code);
     }
 }
+
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
 {
     ESP_LOGD(TAG, "Event dispatched from event loop base=%s, event_id=%d", base, event_id);
     esp_mqtt_event_handle_t event = event_data;
     esp_mqtt_client_handle_t client = event->client;
     int msg_id;
+
     switch ((esp_mqtt_event_id_t)event_id)
     {
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
-        msg_id = esp_mqtt_client_subscribe(client, "/topic/qos0", 1);
+        msg_id = esp_mqtt_client_subscribe(client, subscribed_topic, 1);
         ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
         break;
     case MQTT_EVENT_DISCONNECTED:
@@ -40,11 +51,35 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         break;
     case MQTT_EVENT_PUBLISHED:
         ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
+
+        if (pending_event_active)
+        {
+            buffer_write(pending_event.event, pending_event.song_id);
+            pending_event_active = false;
+            ESP_LOGI(TAG, "Logged event after ack: %s, Song ID: %d",
+                     getEventName(pending_event.event), pending_event.song_id);
+        }
+        else
+        {
+            ESP_LOGE(TAG, "No pending event to log after ack");
+        }
         break;
     case MQTT_EVENT_DATA:
         ESP_LOGI(TAG, "MQTT_EVENT_DATA");
         ESP_LOGI(TAG, "TOPIC=%.*s", event->topic_len, event->topic);
         ESP_LOGI(TAG, "DATA=%.*s", event->data_len, event->data);
+
+        if (strncmp(event->topic, subscribed_topic, event->topic_len) != 0)
+        {
+            ESP_LOGI(TAG, "Ignoring message from different topic");
+            break;
+        }
+
+        if (pending_event_active)
+        {
+            ESP_LOGW(TAG, "Ignoring message because a previous event is still pending acknowledgment");
+            break;
+        }
 
         // Parse the JSON data
         cJSON *root = cJSON_Parse(event->data);
@@ -74,11 +109,15 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             break;
         }
 
-        // Log the buffer entry
-        ESP_LOGI(TAG, "Received event: %s, song ID: %d", getEventName(event_type), song_id_item->valueint);
+        // Store the event temporarily and wait for ack
+        pending_event.event = event_type;
+        pending_event.song_id = song_id_item->valueint;
+        pending_event_active = true;
 
-        // Write to the buffer
-        buffer_write(event_type, song_id_item->valueint);
+        // Publish with QoS 1 to get an acknowledgment
+        char *message = cJSON_Print(root);
+        msg_id = esp_mqtt_client_publish(client, "topic", message, 0, 1, 0);
+        free(message);
 
         cJSON_Delete(root);
         break;
