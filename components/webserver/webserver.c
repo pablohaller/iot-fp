@@ -1,12 +1,10 @@
 #include <stdio.h>
 #include <esp_http_server.h>
 #include <string.h>
-// #include <esp_err.h>
 #include "esp_event.h"
 #include "esp_system.h"
 #include "esp_log.h"
 #include "cJSON.h"
-// #include "network.h"
 #include "webserver.h"
 #include "logger.h"
 #include "mqttclient.h"
@@ -146,67 +144,49 @@ esp_err_t event_type_handler(httpd_req_t *req)
     circular_buffer_t local_buffer = get_buffer_from_nvs();
     uint8_t last_song_id = (local_buffer.count > 0) ? local_buffer.data[(local_buffer.tail + local_buffer.count - 1) % BUFFER_SIZE].song_id : 0;
 
-    ////
-
-    /*
-    typedef enum
-{
-    PLAY_PAUSE = 0,
-    NEXT = 1,
-    PREVIOUS = 2,
-    STOP = 3,
-    VOLUME_UP= 4,
-    VOLUME_DOWN= 5
-} EventType;*/
     switch (event)
     {
-    case 4:
-    {
-        send_command(VOL_UPaudio);
-    }
-    break;
-
-    case 5:
-    {
-        send_command(VOL_DOWNaudio);
-    }
-    break;
-
     case 0:
     {
-        send_command(PLAY_PAUSEaudio);
+        send_command(PLAY_PAUSE_AUDIO);
     }
     break;
 
-    // Pista anterior
-    case 2:
-    {
-        send_command(PREVIOUSaudio);
-    }
-    break;
-
-    // Pista siguiente
     case 1:
     {
-        send_command(NEXTaudio);
+        send_command(NEXT_AUDIO);
+    }
+    break;
+
+    case 2:
+    {
+        send_command(PREVIOUS_AUDIO);
     }
     break;
 
     case 3:
     {
-        send_command(STOPaudio);
+        send_command(STOP_AUDIO);
     }
     break;
 
+    case 4:
+    {
+        send_command(VOL_UP_AUDIO);
+    }
+    break;
+
+    case 5:
+    {
+        send_command(VOL_DOWN_AUDIO);
+    }
+    break;
     default:
     {
         ESP_LOGW(TAG, "Comando no reconocido.");
     }
     break;
     }
-
-    ///
-    // buffer_write(event, last_song_id);
 
     ESP_LOGI(TAG, "Event: %s, Song ID: %d", getEventName(event), last_song_id);
 

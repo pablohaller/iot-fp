@@ -14,34 +14,35 @@
 #pragma once
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-#include "led_strip.h"
 #include "driver/rmt.h"
 
-typedef enum {
-    NONE,
-    PREVIOUSaudio,
-    PLAY_PAUSEaudio,
-    NEXTaudio,
-    STOPaudio,
-    VOL_UPaudio,
-    VOL_DOWNaudio
-} audio_command_t;
+    typedef enum
+    {
+        NONE,
+        PREVIOUS_AUDIO,
+        PLAY_PAUSE_AUDIO,
+        NEXT_AUDIO,
+        STOP_AUDIO,
+        VOL_UP_AUDIO,
+        VOL_DOWN_AUDIO
+    } audio_command_t;
 
-/**
- * @brief Initialize the audio and create task to play and control music.
- *        Note: You need to initialize touch before you can initialize audio
- *
+    /**
+     * @brief Initialize the audio and create task to play and control music.
+     *        Note: You need to initialize touch before you can initialize audio
+     *
 
- */
-int audio_init();
+     */
+    int audio_init();
 
-/**
- * @brief Guarda comando en la cola
- */
-BaseType_t send_command(audio_command_t command);
+    /**
+     * @brief Guarda comando en la cola
+     */
+    BaseType_t send_command(audio_command_t command);
 
 #ifdef __cplusplus
 }

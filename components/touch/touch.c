@@ -26,7 +26,8 @@
 static const char *TAG = "Touch pad";
 
 static QueueHandle_t que_touch = NULL;
-typedef struct touch_msg {
+typedef struct touch_msg
+{
     touch_pad_intr_mask_t intr_mask;
     uint32_t pad_num;
     uint32_t pad_status;
@@ -38,17 +39,17 @@ static uint32_t pad_num;
 static uint32_t pad_mask;
 static uint32_t pad_flag;
 #define TOUCH_BUTTON_WATERPROOF_ENABLE 1
-#define TOUCH_BUTTON_DENOISE_ENABLE    1
-#define TOUCH_BUTTON_NUM    7
+#define TOUCH_BUTTON_DENOISE_ENABLE 1
+#define TOUCH_BUTTON_NUM 7
 
 static const touch_pad_t button[TOUCH_BUTTON_NUM] = {
-    TOUCH_BUTTON_PHOTO,      /*!< 'PHOTO' button */
-    TOUCH_BUTTON_PLAY,       /*!< 'PLAY/PAUSE' button */
-    TOUCH_BUTTON_NETWORK,    /*!< 'NETWORK' button */
-    TOUCH_BUTTON_RECORD,     /*!< 'RECORD' button */
-    TOUCH_BUTTON_VOLUP,      /*!< 'VOL_UP' button */
-    TOUCH_BUTTON_VOLDOWN,    /*!< 'VOL_DOWN' button */
-    TOUCH_BUTTON_GUARD,      /*!< Guard ring for waterproof design. */
+    TOUCH_BUTTON_PHOTO,   /*!< 'PHOTO' button */
+    TOUCH_BUTTON_PLAY,    /*!< 'PLAY/PAUSE' button */
+    TOUCH_BUTTON_NETWORK, /*!< 'NETWORK' button */
+    TOUCH_BUTTON_RECORD,  /*!< 'RECORD' button */
+    TOUCH_BUTTON_VOLUP,   /*!< 'VOL_UP' button */
+    TOUCH_BUTTON_VOLDOWN, /*!< 'VOL_DOWN' button */
+    TOUCH_BUTTON_GUARD,   /*!< Guard ring for waterproof design. */
     /*!< If this pad be touched, other pads no response. */
 };
 
@@ -59,7 +60,7 @@ static const touch_pad_t button[TOUCH_BUTTON_NUM] = {
  * If (raw_data - baseline) < baseline * threshold, the pad be inactivated.
  */
 static const float button_threshold[TOUCH_BUTTON_NUM] = {
-    0.1,     /*!< threshold = 10% */
+    0.1, /*!< threshold = 10% */
     0.1,
     0.1,
     0.1,
@@ -67,8 +68,6 @@ static const float button_threshold[TOUCH_BUTTON_NUM] = {
     0.1,
     0.1,
 };
-
-
 
 /*
   Handle an interrupt triggered when a pad is touched.
@@ -83,13 +82,15 @@ static void touchsensor_interrupt_cb(void *arg)
     evt.pad_status = touch_pad_get_status();
     evt.pad_num = touch_pad_get_current_meas_channel();
 
-    if (evt.intr_mask & TOUCH_PAD_INTR_MASK_DONE) {
+    if (evt.intr_mask & TOUCH_PAD_INTR_MASK_DONE)
+    {
         touch_pad_read_benchmark(evt.pad_num, &evt.pad_val);
     }
 
     xQueueSendFromISR(que_touch, &evt, &task_awoken);
 
-    if (task_awoken == pdTRUE) {
+    if (task_awoken == pdTRUE)
+    {
         portYIELD_FROM_ISR();
     }
 }
@@ -98,12 +99,13 @@ static void tp_example_set_thresholds(void)
 {
     uint32_t touch_value;
 
-    for (int i = 0; i < TOUCH_BUTTON_NUM; i++) {
+    for (int i = 0; i < TOUCH_BUTTON_NUM; i++)
+    {
         /*!< read baseline value */
         touch_pad_read_benchmark(button[i], &touch_value);
         /*!< set interrupt threshold. */
         touch_pad_set_thresh(button[i], touch_value * button_threshold[i]);
-       // ESP_LOGI(TAG, "test init: touch pad [%d] base %d, thresh %d", \       button[i], touch_value, (uint32_t)(touch_value * button_threshold[i]));
+        // ESP_LOGI(TAG, "test init: touch pad [%d] base %d, thresh %d", \       button[i], touch_value, (uint32_t)(touch_value * button_threshold[i]));
     }
 }
 
@@ -111,15 +113,15 @@ static void touchsensor_filter_set(touch_filter_mode_t mode)
 {
     /*!< Filter function */
     touch_filter_config_t filter_info = {
-        .mode = mode,           /*!< Test jitter and filter 1/4. */
-        .debounce_cnt = 1,      /*!< 1 time count. */
-        .noise_thr = 0,         /*!< 50% */
-        .jitter_step = 4,       /*!< use for jitter mode. */
+        .mode = mode,      /*!< Test jitter and filter 1/4. */
+        .debounce_cnt = 1, /*!< 1 time count. */
+        .noise_thr = 0,    /*!< 50% */
+        .jitter_step = 4,  /*!< use for jitter mode. */
     };
     touch_pad_filter_set_config(&filter_info);
     touch_pad_filter_enable();
     /*!< touch_pad_filter_baseline_reset(TOUCH_PAD_MAX); */
-   // ESP_LOGI(TAG, "touch pad filter init %d", mode);
+    // ESP_LOGI(TAG, "touch pad filter init %d", mode);
 }
 
 static void tp_example_read_task(void *pvParameter)
@@ -130,62 +132,69 @@ static void tp_example_read_task(void *pvParameter)
     vTaskDelay(100 / portTICK_RATE_MS);
     tp_example_set_thresholds();
 
-    while (1) {
+    while (1)
+    {
         int ret = xQueueReceive(que_touch, &evt, (portTickType)portMAX_DELAY);
 
-        if (ret != pdTRUE) {
+        if (ret != pdTRUE)
+        {
             continue;
         }
 
-        if (evt.intr_mask & TOUCH_PAD_INTR_MASK_ACTIVE) {
+        if (evt.intr_mask & TOUCH_PAD_INTR_MASK_ACTIVE)
+        {
             /*!< if guard pad be touched, other pads no response. */
-            if (evt.pad_num == button[6]) {
+            if (evt.pad_num == button[6])
+            {
                 guard_mode_flag = 1;
                 ESP_LOGW(TAG, "TouchSensor [%d] be actived, enter guard mode", evt.pad_num);
-            } else {
-                if (guard_mode_flag == 0) {
-                    //ESP_LOGI(TAG, "TouchSensor [%d] be actived, status mask 0x%x", evt.pad_num, evt.pad_status);
+            }
+            else
+            {
+                if (guard_mode_flag == 0)
+                {
+                    // ESP_LOGI(TAG, "TouchSensor [%d] be actived, status mask 0x%x", evt.pad_num, evt.pad_status);
                     pad_status = evt.pad_status;
                     pad_num = evt.pad_num;
                     pad_mask = evt.intr_mask;
                     pad_flag = true;
-                switch (pad_num)
+                    switch (pad_num)
                     {
                     case TOUCH_BUTTON_VOLUP:
                     {
-                        send_command(VOL_UPaudio);
+                        send_command(VOL_UP_AUDIO);
                     }
                     break;
 
                     case TOUCH_BUTTON_VOLDOWN:
                     {
-                        send_command(VOL_DOWNaudio);
+                        send_command(VOL_DOWN_AUDIO);
                     }
                     break;
 
                     case TOUCH_BUTTON_PLAY:
                     {
-                        send_command(PLAY_PAUSEaudio);
+                        send_command(PLAY_PAUSE_AUDIO);
                     }
                     break;
 
                     // Pista anterior
                     case TOUCH_BUTTON_PHOTO:
                     {
-                        send_command(PREVIOUSaudio);
+                        send_command(PREVIOUS_AUDIO);
                     }
                     break;
 
                     // Pista siguiente
                     case TOUCH_BUTTON_NETWORK:
                     {
-                        send_command(NEXTaudio);
+                        send_command(NEXT_AUDIO);
                     }
                     break;
 
                     case TOUCH_BUTTON_RECORD:
                     {
-                        send_command(STOPaudio);
+                        send_command(STOP_AUDIO);
                     }
                     break;
 
@@ -195,22 +204,27 @@ static void tp_example_read_task(void *pvParameter)
                     }
                     break;
                     }
-            
-
-                } else {
+                }
+                else
+                {
                     ESP_LOGW(TAG, "In guard mode. No response");
                 }
             }
         }
 
-        if (evt.intr_mask & TOUCH_PAD_INTR_MASK_INACTIVE) {
+        if (evt.intr_mask & TOUCH_PAD_INTR_MASK_INACTIVE)
+        {
             /*!< if guard pad be touched, other pads no response. */
-            if (evt.pad_num == button[6]) {
+            if (evt.pad_num == button[6])
+            {
                 guard_mode_flag = 0;
-                //ESP_LOGW(TAG, "TouchSensor [%d] be actived, exit guard mode", evt.pad_num);
-            } else {
-                if (guard_mode_flag == 0) {
-                   // ESP_LOGI(TAG, "TouchSensor [%d] be inactived, status mask 0x%x", evt.pad_num, evt.pad_status);
+                // ESP_LOGW(TAG, "TouchSensor [%d] be actived, exit guard mode", evt.pad_num);
+            }
+            else
+            {
+                if (guard_mode_flag == 0)
+                {
+                    // ESP_LOGI(TAG, "TouchSensor [%d] be inactived, status mask 0x%x", evt.pad_num, evt.pad_status);
                     pad_status = evt.pad_status;
                     pad_num = evt.pad_num;
                     pad_mask = evt.intr_mask;
@@ -219,7 +233,8 @@ static void tp_example_read_task(void *pvParameter)
             }
         }
 
-        if (evt.intr_mask & TOUCH_PAD_INTR_MASK_DONE) {
+        if (evt.intr_mask & TOUCH_PAD_INTR_MASK_DONE)
+        {
             ESP_LOGI(TAG, "TouchSensor [%d] measure done, raw data %d", evt.pad_num, evt.pad_val);
         }
     }
@@ -247,7 +262,8 @@ void touch_get_mask(uint32_t *mask)
 
 void touch_init()
 {
-    if (que_touch == NULL) {
+    if (que_touch == NULL)
+    {
         que_touch = xQueueCreate(TOUCH_BUTTON_NUM, sizeof(touch_event_t));
     }
 
@@ -256,7 +272,8 @@ void touch_init()
     /*!< Initialize touch pad peripheral. */
     touch_pad_init();
 
-    for (int i = 0; i < TOUCH_BUTTON_NUM; i++) {
+    for (int i = 0; i < TOUCH_BUTTON_NUM; i++)
+    {
         touch_pad_config(button[i]);
     }
 
@@ -266,7 +283,8 @@ void touch_init()
     touch_pad_set_voltage(TOUCH_PAD_HIGH_VOLTAGE_THRESHOLD, TOUCH_PAD_LOW_VOLTAGE_THRESHOLD, TOUCH_PAD_ATTEN_VOLTAGE_THRESHOLD);
     touch_pad_set_inactive_connect(TOUCH_PAD_INACTIVE_CONNECT_DEFAULT);
 
-    for (int i = 0; i < TOUCH_BUTTON_NUM; i++) {
+    for (int i = 0; i < TOUCH_BUTTON_NUM; i++)
+    {
         touch_pad_set_cnt_mode(i, TOUCH_PAD_SLOPE_DEFAULT, TOUCH_PAD_TIE_OPT_DEFAULT);
     }
 
@@ -287,9 +305,9 @@ void touch_init()
 #if TOUCH_BUTTON_WATERPROOF_ENABLE
     /*!< Waterproof function */
     touch_pad_waterproof_t waterproof = {
-        .guard_ring_pad = TOUCH_BUTTON_GUARD,   /*!< If no ring pad, set 0; */
+        .guard_ring_pad = TOUCH_BUTTON_GUARD, /*!< If no ring pad, set 0; */
         /*!< It depends on the number of the parasitic capacitance of the shield pad. */
-        .shield_driver = TOUCH_PAD_SHIELD_DRV_L0,   /*!< 40pf */
+        .shield_driver = TOUCH_PAD_SHIELD_DRV_L0, /*!< 40pf */
     };
     touch_pad_waterproof_set_config(&waterproof);
     touch_pad_waterproof_enable();

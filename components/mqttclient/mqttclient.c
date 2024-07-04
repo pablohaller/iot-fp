@@ -102,8 +102,8 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         }
 
         // // Check if event_item is a valid EventType
-         EventType event_type = (EventType)event_item->valueint;
-        if (event_type <0 || event_type >5  )
+        EventType event_type = (EventType)event_item->valueint;
+        if (event_type < 0 || event_type > 5)
         {
             ESP_LOGE(TAG, "Unknown event type");
             cJSON_Delete(root);
@@ -115,45 +115,35 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         pending_event.song_id = song_id_item->valueint;
         pending_event_active = true;
 
-        /*typedef enum
-{
-    PLAY_PAUSE = 0,
-    NEXT = 1,
-    PREVIOUS = 2,
-    STOP = 3,
-    VOLUME_UP= 4,
-    VOLUME_DOWN= 5
-} EventType;
-*/
-audio_command_t command = NONE; 
-         if (event_type== 1)
-            {
-                command = NEXTaudio;
-            }
-            else if (event_type== 2)
-            {
-                command = PREVIOUSaudio;
-            }
-            else if (event_type== 0)
-            {
-                command = PLAY_PAUSEaudio;
-            }
-            else if (event_type== 3)
-            {
-                command = STOPaudio;
-            }
-            else if (event_type== 4)
-            {
-                command = VOL_UPaudio;
-            }
-            else if (event_type== 5)
-            {
-                command = VOL_DOWNaudio;
-            }
-            else
-            {
-                ESP_LOGW(TAG, "Received unknown eventType: %i", event_type);
-            }
+        audio_command_t command = NONE;
+        if (event_type == 1)
+        {
+            command = NEXT_AUDIO;
+        }
+        else if (event_type == 2)
+        {
+            command = PREVIOUS_AUDIO;
+        }
+        else if (event_type == 0)
+        {
+            command = PLAY_PAUSE_AUDIO;
+        }
+        else if (event_type == 3)
+        {
+            command = STOP_AUDIO;
+        }
+        else if (event_type == 4)
+        {
+            command = VOL_UP_AUDIO;
+        }
+        else if (event_type == 5)
+        {
+            command = VOL_DOWN_AUDIO;
+        }
+        else
+        {
+            ESP_LOGW(TAG, "Received unknown eventType: %i", event_type);
+        }
 
         send_command(command);
         // Publish with QoS 1 to get an acknowledgment
