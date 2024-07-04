@@ -7,12 +7,14 @@
 
 typedef enum
 {
-    PLAY = 0,
-    PAUSE = 1,
-    NEXT = 2,
-    PREVIOUS = 3,
-    STOP = 4,
+    PLAY_PAUSE = 0,
+    NEXT = 1,
+    PREVIOUS = 2,
+    STOP = 3,
+    VOLUME_UP= 4,
+    VOLUME_DOWN= 5
 } EventType;
+
 
 typedef struct
 {

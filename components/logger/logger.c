@@ -8,6 +8,7 @@
 #include "esp_sntp.h"
 #include <string.h>
 #include <time.h>
+#include "audio.h"
 
 #define TAG "logger"
 #define NVS_NAMESPACE "storage"
@@ -283,12 +284,14 @@ uint8_t get_last_entry(buffer_entry_t *entry)
     return 1;
 }
 
+
 const char *EventNames[] = {
-    "Play",
-    "Pause",
-    "Next",
-    "Previous",
-    "Stop"};
+    "PLAY/PAUSE",
+    "NEXT",
+    "PREVIOUS",
+    "STOP",
+    "VOLUME_UP",
+    "VOLUME_DOWN"};
 
 const char *getEventName(EventType event)
 {
@@ -300,9 +303,6 @@ void init_logger(void)
     buffer_semaphore = xSemaphoreCreateMutex();
     buffer_init();
 
-    buffer_write(PLAY, 1);
-    buffer_write(PAUSE, 2);
-    buffer_write(NEXT, 3);
 
     char *json_string = buffer_to_json();
     ESP_LOGI(TAG, "Buffer JSON: %s", json_string);

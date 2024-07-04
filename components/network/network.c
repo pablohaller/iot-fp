@@ -1,15 +1,12 @@
 #include <stdio.h>
 #include <string.h>
-#include "esp_system.h"
+// #include "esp_system.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_log.h"
 #include "webserver.h"
-#include "mqttclient.h"
 #include "logger.h"
 #include "cJSON.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "freertos/event_groups.h"
 
 #define TAG "network"
@@ -95,7 +92,7 @@ void wifi_init_softap(void)
             .authmode = 0},
     };
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 
@@ -108,8 +105,21 @@ void wifi_init_softap(void)
 
 int wifi_init_sta(const char *ssid, const char *password)
 {
+    // Eliminar interfaz de red STA existente si hay alguna
+    esp_netif_t *sta_netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (sta_netif != NULL)
+    {
+        esp_netif_destroy(sta_netif);
+        ESP_LOGI(TAG, "Interfaz de red STA existente eliminada");
+    }
+
+    // Crear la interfaz de red predeterminada para STA
     xEventGroupWaitBits(wifi_event_group, AP_STARTED_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
     esp_netif_create_default_wifi_sta();
+    // esp_netif_create_default_wifi_sta();
+
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
     esp_event_handler_instance_t instance_any_id;
     esp_event_handler_instance_t instance_got_ip;
@@ -133,7 +143,7 @@ int wifi_init_sta(const char *ssid, const char *password)
     strncpy((char *)wifi_config.sta.ssid, ssid, sizeof(wifi_config.sta.ssid) - 1);
     strncpy((char *)wifi_config.sta.password, password, sizeof(wifi_config.sta.password) - 1);
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
+    // ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_connect());
 
@@ -157,6 +167,41 @@ int wifi_init_sta(const char *ssid, const char *password)
     }
 }
 
+// void wifi_init_sta(void)
+// {
+
+//     esp_netif_create_default_wifi_sta();
+
+//     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+//     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+//     esp_event_handler_instance_t instance_any_id;
+//     esp_event_handler_instance_t instance_got_ip;
+//     ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
+//                                                         ESP_EVENT_ANY_ID,
+//                                                         &sta_event_handler,
+//                                                         NULL,
+//                                                         &instance_any_id));
+//     ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
+//                                                         IP_EVENT_STA_GOT_IP,
+//                                                         &sta_event_handler,
+//                                                         NULL,
+//                                                         &instance_got_ip));
+
+//     wifi_config_t wifi_config = {
+//         .sta = {
+//             .ssid = "caliope",
+//             .password = "sinlugar",
+//         },
+//     };
+//     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+//     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+//     ESP_ERROR_CHECK(esp_wifi_start());
+
+//     ESP_LOGI(TAG, "wifi_init_sta finished.");
+//     init_webserver();
+// }
+
 void init_network(void)
 {
     ESP_LOGI(TAG, "Network init...");
@@ -164,5 +209,7 @@ void init_network(void)
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     wifi_event_group = xEventGroupCreate();
 
-    wifi_init_softap();
+    // wifi_init_softap();
+    wifi_init_sta("caliope", "sinlugar");
+    // wifi_init_sta();
 }

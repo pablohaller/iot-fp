@@ -1,16 +1,17 @@
 #include <stdio.h>
 #include <esp_http_server.h>
 #include <string.h>
-#include <esp_err.h>
+// #include <esp_err.h>
 #include "esp_event.h"
 #include "esp_system.h"
 #include "esp_log.h"
 #include "cJSON.h"
-#include "network.h"
+// #include "network.h"
 #include "webserver.h"
 #include "logger.h"
 #include "mqttclient.h"
 #include "config.h"
+#include "audio.h"
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
@@ -86,7 +87,8 @@ esp_err_t sta_connect_post_handler(httpd_req_t *req)
     {
         ESP_LOGI(TAG, "Parsed SSID: %s", ssid_json->valuestring);
         ESP_LOGI(TAG, "Parsed Password: %s", password_json->valuestring);
-        int status = wifi_init_sta(ssid_json->valuestring, password_json->valuestring);
+        // int status = wifi_init_sta(ssid_json->valuestring, password_json->valuestring);
+        int status = 200;
         if (status == 200)
         {
             const char resp[] = "Connected to WiFi";
@@ -144,7 +146,67 @@ esp_err_t event_type_handler(httpd_req_t *req)
     circular_buffer_t local_buffer = get_buffer_from_nvs();
     uint8_t last_song_id = (local_buffer.count > 0) ? local_buffer.data[(local_buffer.tail + local_buffer.count - 1) % BUFFER_SIZE].song_id : 0;
 
-    buffer_write(event, last_song_id);
+    ////
+
+    /*
+    typedef enum
+{
+    PLAY_PAUSE = 0,
+    NEXT = 1,
+    PREVIOUS = 2,
+    STOP = 3,
+    VOLUME_UP= 4,
+    VOLUME_DOWN= 5
+} EventType;*/
+    switch (event)
+    {
+    case 4:
+    {
+        send_command(VOL_UPaudio);
+    }
+    break;
+
+    case 5:
+    {
+        send_command(VOL_DOWNaudio);
+    }
+    break;
+
+    case 0:
+    {
+        send_command(PLAY_PAUSEaudio);
+    }
+    break;
+
+    // Pista anterior
+    case 2:
+    {
+        send_command(PREVIOUSaudio);
+    }
+    break;
+
+    // Pista siguiente
+    case 1:
+    {
+        send_command(NEXTaudio);
+    }
+    break;
+
+    case 3:
+    {
+        send_command(STOPaudio);
+    }
+    break;
+
+    default:
+    {
+        ESP_LOGW(TAG, "Comando no reconocido.");
+    }
+    break;
+    }
+
+    ///
+    // buffer_write(event, last_song_id);
 
     ESP_LOGI(TAG, "Event: %s, Song ID: %d", getEventName(event), last_song_id);
 
@@ -370,6 +432,5 @@ static void stop_webserver(httpd_handle_t server)
 void init_webserver(void)
 {
     ESP_LOGI(TAG, "Starting HTTP Server");
-    static httpd_handle_t server = NULL;
-    server = start_webserver();
+    start_webserver();
 }

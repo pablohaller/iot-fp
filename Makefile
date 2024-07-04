@@ -3,6 +3,7 @@
 # project subdirectory.
 #
 
-PROJECT_NAME := hello_world
+PROJECT_NAME := esp32-s2beta-hmi
 
 include $(IDF_PATH)/make/project.mk
+
